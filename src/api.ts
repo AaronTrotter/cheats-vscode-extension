@@ -63,8 +63,9 @@ interface GuidesResponse {
 	guides: string;
 }
 
-// Tasks and Brain are two separate sections of the site backed by one collection, split only by
-// category: /tasks holds the user's own notes and checklists, /brain holds the AI-facing entries
+// Tasks and Brain are two separate sections of the site, each with its own Firestore collection
+// (`tasks` and `brain`) but one shared set of REST endpoints, split by category: /tasks holds the
+// user's own notes and checklists, /brain holds the AI-facing entries
 // (`brief` and `rules` are the user's standing guidance, `memory` is what an assistant records for
 // itself). Mirrors TASK_SECTIONS in the site's functions/routes/db/tasks.js. Category is a closed
 // enum server-side, so it's a cycling pill in the create forms rather than a text field, an

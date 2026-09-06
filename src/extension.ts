@@ -310,7 +310,7 @@ async function createCheatCommand(secrets: vscode.SecretStorage): Promise<void> 
 	await saveEntityCommand(secrets, "cheat", cheat.title, signal => addCheat(cheat, secrets, signal));
 }
 
-// Tasks and Brain are separate sections of the site sharing one backing collection, split by
+// Tasks and Brain are separate sections of the site, backed by a collection each and split by
 // category (SECTION_CATEGORIES in ./api). The extension keeps them separate too: each gets its own
 // pair of commands, and every request names its section so a Tasks search never turns up the
 // user's brief/rules/memory entries, or the reverse.
