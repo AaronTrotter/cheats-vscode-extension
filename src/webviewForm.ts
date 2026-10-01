@@ -3,6 +3,9 @@ import {
 	BODY_MAX_LINE_LENGTH,
 	BODY_MAX_LINES,
 	MAX_RECORD_SIZE_BYTES,
+	PROJECT_CARD_STATUSES,
+	PROJECT_CARD_STATUS_LABELS,
+	ProjectCardStatus,
 	SECTION_CATEGORIES,
 	TaskCategory,
 	TaskDuration,
@@ -25,11 +28,23 @@ export interface TaskFormResult {
 	text: string;
 }
 
+export interface ProjectCardFormResult {
+	title: string;
+	status: ProjectCardStatus;
+	text: string;
+}
+
 function nonce(): string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	let text = "";
 	for (let i = 0; i < 32; i++) text += chars.charAt(Math.floor(Math.random() * chars.length));
 	return text;
+}
+
+// For the one piece of server-supplied text that lands in the form's markup: a project card form
+// is titled after its board, and a shared board's name was written by somebody else.
+function htmlEscape(value: string): string {
+	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // Embeds arbitrary user text (e.g. a code selection) as a JS string literal inside a <script>
@@ -78,6 +93,14 @@ const SHARED_STYLE = `
 	button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground)); }
 `;
 
+// Shared by every form: every record type has the same 40-character title.
+const TITLE_FIELD_HTML = `
+<div class="field">
+	<label for="title">Title</label>
+	<input type="text" id="title" class="uppercase-field" maxlength="${TITLE_MAX_LENGTH}" autofocus />
+	<div class="hint" id="titleHint"></div>
+</div>`;
+
 // Shared by every form: the content field is identical between them (same id, same gutter
 // markup), only the surrounding fields differ.
 const BODY_FIELD_HTML = `
@@ -108,10 +131,27 @@ const LINE_NUMBERS_SCRIPT = `
 	})();
 `;
 
+// Shared by every form: the limits validationScript checks against, the elements it reads, and
+// the body seeded from the editor selection. Each form adds its own fields' elements after this.
+function formPrelude(initialBody: string): string {
+	return `
+		const TITLE_MAX = ${TITLE_MAX_LENGTH};
+		const BODY_MAX_LINES = ${BODY_MAX_LINES};
+		const BODY_MAX_LINE_LENGTH = ${BODY_MAX_LINE_LENGTH};
+		const MAX_RECORD_BYTES = ${MAX_RECORD_SIZE_BYTES};
+
+		const titleEl = document.getElementById("title");
+		const bodyEl = document.getElementById("body");
+		const saveBtn = document.getElementById("saveBtn");
+
+		bodyEl.value = ${jsStringLiteral(initialBody)};
+	`;
+}
+
 // A .toggle-btn whose click cycles through a fixed set of values, the interaction the site's own
 // editors use for these fields (renderTaskEditor in public/js/tasks.js) rather than a dropdown or
-// a text input. Shared by all three of them: a cheat's visibility (a two-value case), and a task's
-// category and expiry. `titles` is optional, pass it only when the tooltip should change with the
+// a text input. Shared by every one of them: a cheat's visibility (a two-value case), a task's
+// category and expiry, and a project card's column. `titles` is optional, pass it only when the tooltip should change with the
 // value, otherwise the button keeps whatever static title its markup declares.
 function cyclingToggleScript(
 	stateVar: string,
@@ -204,7 +244,7 @@ function panelHtml(nonceValue: string, title: string, fieldsHtml: string, saveLa
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonceValue}';">
-<title>${title}</title>
+<title>${htmlEscape(title)}</title>
 <style>${SHARED_STYLE}</style>
 </head>
 <body>
@@ -251,12 +291,7 @@ function openFormPanel<T>(
 }
 
 export function showCreateCheatForm(initialBody: string): Promise<CheatFormResult | undefined> {
-	const fields = `
-<div class="field">
-	<label for="title">Title</label>
-	<input type="text" id="title" class="uppercase-field" maxlength="${TITLE_MAX_LENGTH}" autofocus />
-	<div class="hint" id="titleHint"></div>
-</div>
+	const fields = `${TITLE_FIELD_HTML}
 <div class="row">
 	<div class="field">
 		<label for="typeName">Type</label>
@@ -281,18 +316,9 @@ export function showCreateCheatForm(initialBody: string): Promise<CheatFormResul
 	);
 
 	const script = `
-		const TITLE_MAX = ${TITLE_MAX_LENGTH};
+		${formPrelude(initialBody)}
 		const TYPE_MAX = ${TYPE_MAX_LENGTH};
-		const BODY_MAX_LINES = ${BODY_MAX_LINES};
-		const BODY_MAX_LINE_LENGTH = ${BODY_MAX_LINE_LENGTH};
-		const MAX_RECORD_BYTES = ${MAX_RECORD_SIZE_BYTES};
-
-		const titleEl = document.getElementById("title");
 		const typeEl = document.getElementById("typeName");
-		const bodyEl = document.getElementById("body");
-		const saveBtn = document.getElementById("saveBtn");
-
-		bodyEl.value = ${jsStringLiteral(initialBody)};
 		${visibility}
 		${validationScript('{ title, typeName, body: { text: bodyEl.value }, private: visibility === "private" }', {
 			elementVar: "typeEl",
@@ -330,12 +356,7 @@ const SECTION_SAVE_LABELS: Record<TaskSection, string> = { tasks: "Save task", b
 // (resolveCategory in the site's functions/routes/db/tasks.js) and 400s anything else, so cycling
 // it makes an invalid value unreachable instead of merely rejected after a round trip.
 export function showCreateTaskForm(initialBody: string, section: TaskSection): Promise<TaskFormResult | undefined> {
-	const fields = `
-<div class="field">
-	<label for="title">Title</label>
-	<input type="text" id="title" class="uppercase-field" maxlength="${TITLE_MAX_LENGTH}" autofocus />
-	<div class="hint" id="titleHint"></div>
-</div>
+	const fields = `${TITLE_FIELD_HTML}
 <div class="row">
 	<div class="field">
 		<label for="categoryToggle">Category</label>
@@ -356,16 +377,7 @@ export function showCreateTaskForm(initialBody: string, section: TaskSection): P
 	});
 
 	const script = `
-		const TITLE_MAX = ${TITLE_MAX_LENGTH};
-		const BODY_MAX_LINES = ${BODY_MAX_LINES};
-		const BODY_MAX_LINE_LENGTH = ${BODY_MAX_LINE_LENGTH};
-		const MAX_RECORD_BYTES = ${MAX_RECORD_SIZE_BYTES};
-
-		const titleEl = document.getElementById("title");
-		const bodyEl = document.getElementById("body");
-		const saveBtn = document.getElementById("saveBtn");
-
-		bodyEl.value = ${jsStringLiteral(initialBody)};
+		${formPrelude(initialBody)}
 		${category}
 		${duration}
 		${validationScript("{ title, category, text: bodyEl.value, duration }")}
@@ -383,6 +395,39 @@ export function showCreateTaskForm(initialBody: string, section: TaskSection): P
 			category: message.category as TaskCategory,
 			text: message.text as string,
 			duration: message.duration as TaskDuration
+		})
+	);
+}
+
+// The card is added to `projectName`'s board, already picked before the form opens, so the form
+// only asks for what the card itself carries. Status is the board column, cycled as a pill for the
+// same reason a task's category is: the server takes a closed enum and 400s anything else.
+export function showCreateProjectCardForm(initialBody: string, projectName: string): Promise<ProjectCardFormResult | undefined> {
+	const fields = `${TITLE_FIELD_HTML}
+<div class="field">
+	<label for="statusToggle">Column</label>
+	<button type="button" id="statusToggle" class="toggle-btn" title="Click to change column"></button>
+</div>${BODY_FIELD_HTML}`;
+
+	const status = cyclingToggleScript("status", "statusToggle", PROJECT_CARD_STATUSES, PROJECT_CARD_STATUS_LABELS);
+
+	const script = `
+		${formPrelude(initialBody)}
+		${status}
+		${validationScript("{ title, status, text: bodyEl.value }")}
+		${LINE_NUMBERS_SCRIPT}
+	`;
+
+	return openFormPanel(
+		"cheatsCreateProjectCard",
+		`New Card: ${projectName}`,
+		fields,
+		"Save card",
+		script,
+		message => ({
+			title: message.title as string,
+			status: message.status as ProjectCardStatus,
+			text: message.text as string
 		})
 	);
 }

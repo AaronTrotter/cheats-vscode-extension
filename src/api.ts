@@ -38,7 +38,7 @@ export interface NewCheat {
 	private: boolean;
 }
 
-// Both POST /mcp/addCheat and POST /mcp/addTask answer with just the new record's id.
+// POST /mcp/addCheat, /mcp/addTask, /mcp/addBrain and /mcp/addProjectTask all answer with just the new record's id.
 interface AddResponse {
 	id: string;
 }
@@ -64,7 +64,7 @@ interface GuidesResponse {
 }
 
 // Tasks and Brain are two separate sections of the site, each with its own Firestore collection
-// (`tasks` and `brain`) but one shared set of REST endpoints, split by category: /tasks holds the
+// (`tasks` and `brain`) and its own REST endpoints (SECTION_ENDPOINTS below): /tasks holds the
 // user's own notes and checklists, /brain holds the AI-facing entries
 // (`brief` and `rules` are the user's standing guidance, `memory` is what an assistant records for
 // itself). Mirrors TASK_SECTIONS in the site's functions/routes/db/tasks.js. Category is a closed
@@ -87,9 +87,75 @@ export interface NewTask {
 	duration: TaskDuration;
 }
 
+// Projects are the boards, cards are what sit on them. Unlike every other section a board can be
+// shared with the user, so /mcp/searchProjects returns those too, with a `role` saying what the
+// user may do on it. A viewer can read the cards but not add any.
+export type ProjectRole = "owner" | "editor" | "viewer";
+
+export interface ProjectResult {
+	id: string;
+	name: string;
+	createdDateMs: number;
+	role: ProjectRole;
+	ownerEmail: string;
+	memberCount: number;
+}
+
+interface SearchProjectsResponse {
+	projects: ProjectResult[];
+}
+
+// A card's status is the board column it sits in, and a closed enum server-side
+// (PROJECT_TASK_STATUSES in the site's functions/routes/db/projects.js). There is no done column:
+// a finished card is deleted.
+export const PROJECT_CARD_STATUSES = ["open", "in-progress", "in-review"] as const;
+export type ProjectCardStatus = typeof PROJECT_CARD_STATUSES[number];
+
+export const PROJECT_CARD_STATUS_LABELS: Record<ProjectCardStatus, string> = {
+	open: "Open",
+	"in-progress": "In progress",
+	"in-review": "In review"
+};
+
+export interface ProjectCardResult {
+	id: string;
+	title: string;
+	projectID: string;
+	status: ProjectCardStatus;
+	text: string;
+	highlights: string[];
+	links: string[];
+	createdDateMs: number;
+}
+
+interface SearchProjectCardsResponse {
+	tasks: ProjectCardResult[];
+}
+
+export interface NewProjectCard {
+	title: string;
+	projectID: string;
+	text: string;
+	status: ProjectCardStatus;
+}
+
 export class ApiError extends Error {
-	constructor(public status: number, message: string) {
+	/** Set by the server alongside a 403 for a Pro-only feature (requireProTier in the site's dbHelpers.js). */
+	public tier?: string;
+
+	constructor(public status: number, message: string, tier?: string) {
 		super(message);
+		this.tier = tier;
+	}
+
+	/** The account is on Free and the endpoint (any write) needs Pro. */
+	get needsPro(): boolean {
+		return this.status === 403 && this.tier === "free";
+	}
+
+	/** The key is limited to particular sections of the app, and this endpoint is outside them. */
+	get outsideKeySections(): boolean {
+		return this.status === 403 && /not scoped to/i.test(this.message);
 	}
 }
 
@@ -115,6 +181,11 @@ function baseUrl(): string {
 	return vscode.workspace.getConfiguration("cheats").get<string>("baseUrl", "").replace(/\/+$/, "");
 }
 
+/** A page on the configured Cheatsheet site, e.g. sitePage("/billing"), for the commands that link out to it. */
+export function sitePage(path: string): vscode.Uri {
+	return vscode.Uri.parse(`${baseUrl()}${path}`);
+}
+
 async function request<T>(path: string, secrets: vscode.SecretStorage, signal: AbortSignal, init?: RequestInit): Promise<T> {
 	const apiKey = await getApiKey(secrets);
 	if (!apiKey) {
@@ -129,13 +200,13 @@ async function request<T>(path: string, secrets: vscode.SecretStorage, signal: A
 		signal
 	});
 	if (!res.ok) {
-		const body = await res.json().catch(() => ({}));
-		throw new ApiError(res.status, (body as { error?: string }).error || res.statusText);
+		const body = (await res.json().catch(() => ({}))) as { error?: string; tier?: string };
+		throw new ApiError(res.status, body.error || res.statusText, body.tier);
 	}
 	return res.json() as Promise<T>;
 }
 
-// Shared by both create calls: same method, same content type, same { id } response, so only the
+// Shared by every create call: same method, same content type, same { id } response, so only the
 // path and payload differ.
 async function post(path: string, payload: unknown, secrets: vscode.SecretStorage, signal: AbortSignal): Promise<string> {
 	const data = await request<AddResponse>(path, secrets, signal, {
@@ -144,6 +215,11 @@ async function post(path: string, payload: unknown, secrets: vscode.SecretStorag
 		body: JSON.stringify(payload)
 	});
 	return data.id;
+}
+
+// For the searches where a blank query means "everything, newest first" rather than an error.
+function withOptionalQuery(path: string, query: string): string {
+	return query ? `${path}?${new URLSearchParams({ q: query })}` : path;
 }
 
 export async function searchCheats(
@@ -175,26 +251,32 @@ export async function addCheat(
 	return post("/mcp/addCheat", cheat, secrets, signal);
 }
 
-// `section` is what keeps Tasks and Brain apart: omitting it searches across both, which would let
-// a Tasks search turn up the user's brief/rules/memory entries.
+// Tasks and Brain each have their own pair of endpoints server-side, and neither can reach the
+// other's entries: /mcp/searchTasks and /mcp/addTask only accept `note`/`list` (a Brain category is
+// a 400), while /mcp/searchBrain and /mcp/addBrain only accept `brief`/`rules`/`memory`. So the
+// section picks the path, not a query parameter.
+const SECTION_ENDPOINTS: Record<TaskSection, { search: string; add: string }> = {
+	tasks: { search: "/mcp/searchTasks", add: "/mcp/addTask" },
+	brain: { search: "/mcp/searchBrain", add: "/mcp/addBrain" }
+};
+
 export async function searchTasks(
 	query: string,
 	section: TaskSection,
 	secrets: vscode.SecretStorage,
 	signal: AbortSignal
 ): Promise<TaskResult[]> {
-	const params = new URLSearchParams({ section });
-	if (query) params.set("q", query);
-	const data = await request<SearchTasksResponse>(`/mcp/searchTasks?${params}`, secrets, signal);
+	const data = await request<SearchTasksResponse>(withOptionalQuery(SECTION_ENDPOINTS[section].search, query), secrets, signal);
 	return data.tasks;
 }
 
 export async function addTask(
 	task: NewTask,
+	section: TaskSection,
 	secrets: vscode.SecretStorage,
 	signal: AbortSignal
 ): Promise<string> {
-	return post("/mcp/addTask", task, secrets, signal);
+	return post(SECTION_ENDPOINTS[section].add, task, secrets, signal);
 }
 
 // The user's own standing guidance (their Brain's `brief` and `rules` entries, `memory` excluded)
@@ -203,4 +285,29 @@ export async function addTask(
 export async function getGuides(secrets: vscode.SecretStorage, signal: AbortSignal): Promise<string> {
 	const data = await request<GuidesResponse>("/mcp/getGuides", secrets, signal);
 	return data.guides;
+}
+
+// The boards the user can see, their own and any shared with them, name-sorted by the server.
+export async function searchProjects(secrets: vscode.SecretStorage, signal: AbortSignal): Promise<ProjectResult[]> {
+	const data = await request<SearchProjectsResponse>("/mcp/searchProjects", secrets, signal);
+	return data.projects;
+}
+
+// Every card on every board the user can see, shared ones included. Unpaginated server-side: a
+// board is read whole.
+export async function searchProjectCards(
+	query: string,
+	secrets: vscode.SecretStorage,
+	signal: AbortSignal
+): Promise<ProjectCardResult[]> {
+	const data = await request<SearchProjectCardsResponse>(withOptionalQuery("/mcp/searchProjectTasks", query), secrets, signal);
+	return data.tasks;
+}
+
+export async function addProjectCard(
+	card: NewProjectCard,
+	secrets: vscode.SecretStorage,
+	signal: AbortSignal
+): Promise<string> {
+	return post("/mcp/addProjectTask", card, secrets, signal);
 }

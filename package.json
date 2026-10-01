@@ -1,8 +1,8 @@
 {
   "name": "aaronscheatsheet",
   "displayName": "Cheatsheet Sidekick",
-  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheatsheet snippets, Tasks, and Brain entries without leaving the editor.",
-  "version": "0.0.7",
+  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheatsheet snippets, Tasks, Brain entries, and Project cards without leaving the editor.",
+  "version": "0.0.8",
   "publisher": "AaronTrotter",
   "icon": "icon.png",
   "license": "MIT",
@@ -52,6 +52,14 @@
       {
         "command": "cheats.insertGuides",
         "title": "Cheatsheet Sidekick: Insert Guides (Brief + Rules)"
+      },
+      {
+        "command": "cheats.searchProjectCards",
+        "title": "Cheatsheet Sidekick: Search Project Cards"
+      },
+      {
+        "command": "cheats.createProjectCard",
+        "title": "Cheatsheet Sidekick: Create Project Card"
       }
     ],
     "keybindings": [

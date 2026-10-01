@@ -2,17 +2,24 @@ import * as vscode from "vscode";
 import {
 	ApiError,
 	NewCheat,
+	NewProjectCard,
 	NewTask,
+	PROJECT_CARD_STATUS_LABELS,
+	ProjectResult,
 	TaskSection,
 	addCheat,
+	addProjectCard,
 	addTask,
 	getCheatBody,
 	getGuides,
 	searchCheats,
+	searchProjectCards,
+	searchProjects,
 	searchTasks,
-	setApiKey
+	setApiKey,
+	sitePage
 } from "./api";
-import { showCreateCheatForm, showCreateTaskForm } from "./webviewForm";
+import { showCreateCheatForm, showCreateProjectCardForm, showCreateTaskForm } from "./webviewForm";
 
 const TRIGGER = /\/cheats\s+(\S.*)$/;
 const DEBOUNCE_MS = 250;
@@ -139,10 +146,43 @@ function showApiError(error: unknown): void {
 	vscode.window.showErrorMessage(`Cheatsheet Sidekick: ${message}`);
 }
 
+// Shared by every command (the as-you-type completions stay on the rate-limited showApiError).
+// The access errors the server answers with get a message saying what to do about them and a
+// button that does it, rather than the bare server text. `entityName` is passed only by the create
+// commands, since a missing write key or a Free account is only ever the problem on a write.
+async function handleApiError(error: unknown, secrets: vscode.SecretStorage, entityName?: EntityName): Promise<void> {
+	if (!(error instanceof ApiError)) {
+		showApiError(error);
+		return;
+	}
+
+	let message: string;
+	let actions: string[];
+	if (error.outsideKeySections) {
+		message = `${error.message} Tick that section for the key on your Cheatsheet User page, or set a key that covers it.`;
+		actions = ["Set API Key", "Open User Page"];
+	} else if (entityName && error.needsPro) {
+		message = `Creating a ${entityName} needs a Pro account, and yours is on Free.`;
+		actions = ["Upgrade to Pro"];
+	} else if (entityName && error.status === 401) {
+		message = `Creating a ${entityName} needs a Pro account and a read + write API key. Either your key ` +
+			"doesn't have write access, is out of date, or your account isn't Pro yet.";
+		actions = ["Set API Key", "Upgrade to Pro"];
+	} else {
+		showApiError(error);
+		return;
+	}
+
+	const choice = await vscode.window.showErrorMessage(`Cheatsheet Sidekick: ${message}`, ...actions);
+	if (choice === "Set API Key") await setApiKey(secrets);
+	else if (choice === "Open User Page") await vscode.env.openExternal(sitePage("/user"));
+	else if (choice === "Upgrade to Pro") await vscode.env.openExternal(sitePage("/billing"));
+}
+
 // Shared by search and create commands: runs `action` under a cancellable progress notification,
 // swallowing the AbortError that results from the user cancelling (undefined return means
 // "cancelled, nothing more to do") while letting any other error (e.g. ApiError) propagate for the
-// caller to handle on its own terms (create commands special-case 401, search commands don't).
+// caller to hand to handleApiError.
 async function withCancellableProgress<T>(title: string, action: (signal: AbortSignal) => Promise<T>): Promise<T | undefined> {
 	const controller = new AbortController();
 	try {
@@ -175,11 +215,11 @@ interface SearchFlow<T> {
 	resolveText: (result: T, signal: AbortSignal) => Promise<string>;
 }
 
-// Shared by all three search commands, which otherwise differ only in wording and in which API
+// Shared by every search command, which otherwise differ only in wording and in which API
 // call they make: seed a query from the selection or the word under the cursor, search under a
 // cancellable progress notification, offer the results in a quick pick, then replace the seed
 // range (or insert at the cursor) with whatever was picked.
-async function searchAndInsertCommand<T>(flow: SearchFlow<T>): Promise<void> {
+async function searchAndInsertCommand<T>(secrets: vscode.SecretStorage, flow: SearchFlow<T>): Promise<void> {
 	const editor = vscode.window.activeTextEditor;
 	if (!editor) return;
 
@@ -214,7 +254,7 @@ async function searchAndInsertCommand<T>(flow: SearchFlow<T>): Promise<void> {
 	try {
 		results = await withCancellableProgress(`Cheatsheet Sidekick: Searching ${flow.label}…`, signal => flow.search(query, signal));
 	} catch (error) {
-		showApiError(error);
+		await handleApiError(error, secrets);
 		return;
 	}
 	if (results === undefined) return;
@@ -234,18 +274,18 @@ async function searchAndInsertCommand<T>(flow: SearchFlow<T>): Promise<void> {
 	try {
 		text = await flow.resolveText(picked.result, new AbortController().signal);
 	} catch (error) {
-		showApiError(error);
+		await handleApiError(error, secrets);
 		return;
 	}
 
 	await insertOrReplace(editor, range, text);
 }
 
-type EntityName = "cheat" | "task" | "brain entry";
+type EntityName = "cheat" | "task" | "brain entry" | "project card";
 
-// Shared by all three create commands: runs the save under progress, then handles the three
-// outcomes they have in common (cancelled, needs-Pro 401, any other ApiError) the same way,
-// leaving only the entity-specific naming and the save call itself to the caller.
+// Shared by every create command: runs the save under progress, then handles the outcomes they
+// have in common (cancelled, or any ApiError via handleApiError) the same way, leaving only the
+// entity-specific naming and the save call itself to the caller.
 async function saveEntityCommand(
 	secrets: vscode.SecretStorage,
 	entityName: EntityName,
@@ -256,20 +296,7 @@ async function saveEntityCommand(
 	try {
 		id = await withCancellableProgress(`Cheatsheet Sidekick: Saving ${entityName}…`, save);
 	} catch (error) {
-		if (error instanceof ApiError && error.status === 401) {
-			const choice = await vscode.window.showErrorMessage(
-				`Cheatsheet Sidekick: Creating a ${entityName} needs a Pro account and a read + write API key. Either your key ` +
-					"doesn't have write access, is out of date, or your account isn't Pro yet.",
-				"Set API Key",
-				"Upgrade to Pro"
-			);
-			if (choice === "Set API Key") await setApiKey(secrets);
-			else if (choice === "Upgrade to Pro") {
-				await vscode.env.openExternal(vscode.Uri.parse("https://cheats.aarontrotter.com/billing"));
-			}
-			return;
-		}
-		showApiError(error);
+		await handleApiError(error, secrets, entityName);
 		return;
 	}
 	if (id === undefined) return;
@@ -277,7 +304,7 @@ async function saveEntityCommand(
 }
 
 function searchCheatsCommand(secrets: vscode.SecretStorage): Promise<void> {
-	return searchAndInsertCommand({
+	return searchAndInsertCommand(secrets, {
 		label: "Cheats",
 		prompt: "Search your cheatsheet site",
 		pickTitle: "Cheatsheet Sidekick: Select a result to insert",
@@ -312,15 +339,15 @@ async function createCheatCommand(secrets: vscode.SecretStorage): Promise<void> 
 
 // Tasks and Brain are separate sections of the site, backed by a collection each and split by
 // category (SECTION_CATEGORIES in ./api). The extension keeps them separate too: each gets its own
-// pair of commands, and every request names its section so a Tasks search never turns up the
-// user's brief/rules/memory entries, or the reverse.
+// pair of commands, and each section has its own endpoints server-side, so a Tasks search never
+// turns up the user's brief/rules/memory entries, or the reverse.
 const SECTION_LABELS: Record<TaskSection, string> = { tasks: "Tasks", brain: "Brain" };
 const SECTION_ENTITY_NAMES: Record<TaskSection, EntityName> = { tasks: "task", brain: "brain entry" };
 const SECTION_PICK_NOUNS: Record<TaskSection, string> = { tasks: "a task", brain: "an entry" };
 
 function searchSectionCommand(secrets: vscode.SecretStorage, section: TaskSection): Promise<void> {
 	const label = SECTION_LABELS[section];
-	return searchAndInsertCommand({
+	return searchAndInsertCommand(secrets, {
 		label,
 		prompt: `Search your ${label} (leave blank to browse your most recent)`,
 		pickTitle: `Cheatsheet Sidekick: Select ${SECTION_PICK_NOUNS[section]} to insert`,
@@ -350,7 +377,7 @@ async function createSectionCommand(secrets: vscode.SecretStorage, section: Task
 		duration: form.duration
 	};
 
-	await saveEntityCommand(secrets, SECTION_ENTITY_NAMES[section], task.title, signal => addTask(task, secrets, signal));
+	await saveEntityCommand(secrets, SECTION_ENTITY_NAMES[section], task.title, signal => addTask(task, section, secrets, signal));
 }
 
 // The user's own brief and rules, pre-formatted as markdown by the server (buildGuidesText in the
@@ -364,7 +391,7 @@ async function insertGuidesCommand(secrets: vscode.SecretStorage): Promise<void>
 	try {
 		guides = await withCancellableProgress("Cheatsheet Sidekick: Fetching Guides…", signal => getGuides(secrets, signal));
 	} catch (error) {
-		showApiError(error);
+		await handleApiError(error, secrets);
 		return;
 	}
 	if (guides === undefined) return;
@@ -381,6 +408,83 @@ async function insertGuidesCommand(secrets: vscode.SecretStorage): Promise<void>
 	await insertOrReplace(editor, undefined, guides);
 }
 
+// Projects is the site's Kanban board: projects are the boards, cards sit on them in a column
+// (their status). Search spans every board the user can see, shared ones included.
+function searchProjectCardsCommand(secrets: vscode.SecretStorage): Promise<void> {
+	return searchAndInsertCommand(secrets, {
+		label: "Project Cards",
+		prompt: "Search your project cards (leave blank to list every card)",
+		pickTitle: "Cheatsheet Sidekick: Select a card to insert",
+		emptyMessage: "Cheatsheet Sidekick: No project cards found.",
+		useSelectionDirectly: false,
+		allowBlankQuery: true,
+		search: async (query, signal) => {
+			// A card only carries its board's id, so the names come from a second call made
+			// alongside it. Both count against the daily quota.
+			const [cards, projects] = await Promise.all([
+				searchProjectCards(query, secrets, signal),
+				searchProjects(secrets, signal)
+			]);
+			const names = new Map(projects.map(project => [project.id, project.name]));
+			return cards.map(card => ({ ...card, projectName: names.get(card.projectID) ?? "Unknown project" }));
+		},
+		toItem: c => ({
+			label: c.title,
+			description: `${c.projectName} · ${PROJECT_CARD_STATUS_LABELS[c.status] ?? c.status}`,
+			detail: c.text.replace(/\s+/g, " ").trim()
+		}),
+		resolveText: async c => c.text
+	});
+}
+
+// Picks the board first, since a card can't exist without one and the form names it in its title.
+// Boards the user can only view are left out of the pick, as adding to one would just 403 on save.
+// There's no way to create a board from here: the extension only adds cards to existing ones.
+async function createProjectCardCommand(secrets: vscode.SecretStorage): Promise<void> {
+	const initialBody = getSelectedText(vscode.window.activeTextEditor);
+
+	let projects: ProjectResult[] | undefined;
+	try {
+		projects = await withCancellableProgress("Cheatsheet Sidekick: Fetching projects…", signal => searchProjects(secrets, signal));
+	} catch (error) {
+		await handleApiError(error, secrets);
+		return;
+	}
+	if (projects === undefined) return;
+
+	const writable = projects.filter(project => project.role !== "viewer");
+	if (writable.length === 0) {
+		vscode.window.showInformationMessage(projects.length > 0
+			? "Cheatsheet Sidekick: You only have view access to the projects you can see, so there's nowhere to add a card."
+			: "Cheatsheet Sidekick: No projects yet. Create one on Cheatsheet's Projects page first.");
+		return;
+	}
+
+	const project = writable.length === 1
+		? writable[0]
+		: (await vscode.window.showQuickPick(
+			writable.map(p => ({
+				label: p.name,
+				description: p.role === "owner" ? undefined : `shared by ${p.ownerEmail}`,
+				project: p
+			})),
+			{ title: "Cheatsheet Sidekick: Add the card to which project?", matchOnDescription: true }
+		))?.project;
+	if (!project) return;
+
+	const form = await showCreateProjectCardForm(initialBody, project.name);
+	if (!form) return;
+
+	const card: NewProjectCard = {
+		title: form.title,
+		projectID: project.id,
+		text: form.text,
+		status: form.status
+	};
+
+	await saveEntityCommand(secrets, "project card", card.title, signal => addProjectCard(card, secrets, signal));
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	const provider = new CheatsCompletionProvider(context.secrets);
 
@@ -393,7 +497,9 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("cheats.createTask", () => createSectionCommand(context.secrets, "tasks")),
 		vscode.commands.registerCommand("cheats.searchBrain", () => searchSectionCommand(context.secrets, "brain")),
 		vscode.commands.registerCommand("cheats.createBrain", () => createSectionCommand(context.secrets, "brain")),
-		vscode.commands.registerCommand("cheats.insertGuides", () => insertGuidesCommand(context.secrets))
+		vscode.commands.registerCommand("cheats.insertGuides", () => insertGuidesCommand(context.secrets)),
+		vscode.commands.registerCommand("cheats.searchProjectCards", () => searchProjectCardsCommand(context.secrets)),
+		vscode.commands.registerCommand("cheats.createProjectCard", () => createProjectCardCommand(context.secrets))
 	);
 }
 

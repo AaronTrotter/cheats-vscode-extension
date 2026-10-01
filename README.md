@@ -1,14 +1,14 @@
 # Cheatsheet Sidekick
 
-Search, insert, and save snippets, Tasks, and Brain entries from [Cheatsheet](https://cheats.aarontrotter.com) without leaving VS Code.
+Search, insert, and save snippets, Tasks, Brain entries, and Project cards from [Cheatsheet](https://cheats.aarontrotter.com) without leaving VS Code.
 
-[Cheatsheet](https://cheats.aarontrotter.com) is a personal cheat-sheet web app for storing code and command snippets ("cheats"), searchable and organized by type, plus a separate Tasks section for private to-do lists and notes, and a Brain section holding the context, rules, and memories you want an AI assistant to work from. This extension connects to your Cheatsheet account so you can pull a snippet, task, or brain entry straight into your editor, or push a new one back up, without switching to the browser.
+[Cheatsheet](https://cheats.aarontrotter.com) is a personal cheat-sheet web app for storing code and command snippets ("cheats"), searchable and organized by type, plus a separate Tasks section for private to-do lists and notes, a Brain section holding the context, rules, and memories you want an AI assistant to work from, and a Projects section for Kanban boards. This extension connects to your Cheatsheet account so you can pull a snippet, task, brain entry, or project card straight into your editor, or push a new one back up, without switching to the browser.
 
-**Free to search.** A free Cheatsheet account is all you need for search and insert of both cheats and Tasks, no card required. Creating cheats or Tasks from VS Code needs a Pro plan, see [Plans and limits](#plans-and-limits) below.
+**Free to search.** A free Cheatsheet account is all you need for search and insert across every section, no card required. Creating anything from VS Code needs a Pro plan, see [Plans and limits](#plans-and-limits) below.
 
 ## Getting started
 
-1. On [cheats.aarontrotter.com](https://cheats.aarontrotter.com), sign in (or create a free account) and go to `/user`. In the API Access section, generate an API key. Pick read-only if you just want to search, or read + write if you also want to create cheats or Tasks from VS Code (Pro required for write, see below).
+1. On [cheats.aarontrotter.com](https://cheats.aarontrotter.com), sign in (or create a free account) and go to `/user`. In the API Access section, generate an API key. Pick read-only if you just want to search, or read + write if you also want to create things from VS Code (Pro required for write, see below). If you limit the key to particular sections, include every section you want to use from VS Code: Cheats, Tasks, Brain, and Projects.
 2. Back in VS Code, open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and run `Cheatsheet Sidekick: Set API Key`, then paste the key in. It's kept in VS Code's secure SecretStorage, never written to a settings file.
 3. You're set. Try typing `/cheats` in any file to search.
 
@@ -42,13 +42,20 @@ Brain is the AI-facing side of the same section: briefs are context you want an 
 - `Cheatsheet Sidekick: Create Brain Entry` opens the same form with the category pill cycling Brief, Rules, and Memory instead of Note and List.
 - `Cheatsheet Sidekick: Insert Guides (Brief + Rules)` pulls your briefs and rules as one formatted markdown block and inserts it at the cursor, which is the thing to drop into a `CLAUDE.md` or `AGENTS.md`. If you have none yet, it tells you so rather than inserting nothing.
 
+### Work with your Projects
+
+Projects is Cheatsheet's Kanban board: each project is a board, and each card sits in one of its columns (Open, In progress, In review). Two Command Palette commands cover it, again with no default keybindings:
+
+- `Cheatsheet Sidekick: Search Project Cards` searches the cards on every board you can see, including boards shared with you. Leave the box blank to list every card. Each result shows which board it's on and which column it's in, and picking one inserts its text.
+- `Cheatsheet Sidekick: Create Project Card` asks which board to add it to (skipped if you only have one), then opens a form with the title, a column pill, and the text, pre-filled from your selection. Boards shared with you as view-only aren't offered. New boards are created on the site itself.
+
 ## Plans and limits
 
-This extension's usage aligns with whatever plan your Cheatsheet account is on. Search and insert work on any account for both cheats and Tasks, while creating either from VS Code needs a Pro plan (Pro also raises your daily API quota, and lifts the Free caps on the site's own sections: up to 5 items each in Vault, Tasks, Brain and Pennies, and one project with up to 5 cards or entries in Projects and Hours, while Dues needs Pro to add anything). See [Cheatsheet's plans](https://cheats.aarontrotter.com/billing) for the details.
+This extension's usage aligns with whatever plan your Cheatsheet account is on. Search and insert work on any account for every section, while creating anything from VS Code needs a Pro plan (Pro also raises your daily API quota, and lifts the Free caps on the site's own sections: up to 5 items each in Vault, Tasks, Brain and Pennies, and one project with up to 5 cards or entries in Projects and Hours, while Dues needs Pro to add anything). See [Cheatsheet's plans](https://cheats.aarontrotter.com/billing) for the details.
 
 A couple of other things worth knowing:
 
-- Search only shows cheats you can normally see: your own private ones, plus everything public. Tasks are always private, so task search only ever shows your own.
+- Search only shows cheats you can normally see: your own private ones, plus everything public. Tasks and Brain entries are always private, so those searches only ever show your own. Project card search also includes cards on boards other people have shared with you.
 - The daily API quota is shared across everything using your key, including Cheatsheet's Model Context Protocol integration if you use that too. Full API details live at [cheats.aarontrotter.com/api-docs](https://cheats.aarontrotter.com/api-docs).
 
 ## Contributing
