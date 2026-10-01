@@ -44,7 +44,7 @@ Brain is the AI-facing side of the same section: briefs are context you want an 
 
 ## Plans and limits
 
-This extension's usage aligns with whatever plan your Cheatsheet account is on. Search and insert work on any account for both cheats and Tasks, while creating either from VS Code needs a Pro plan (Pro also raises your daily API quota, and lifts the item caps on the site's own Vault, Tasks, Brain, Pennies, and Projects sections, which a free account can use up to 5 items each). See [Cheatsheet's plans](https://cheats.aarontrotter.com/billing) for the details.
+This extension's usage aligns with whatever plan your Cheatsheet account is on. Search and insert work on any account for both cheats and Tasks, while creating either from VS Code needs a Pro plan (Pro also raises your daily API quota, and lifts the Free caps on the site's own sections: up to 5 items each in Vault, Tasks, Brain and Pennies, and one project with up to 5 cards or entries in Projects and Hours, while Dues needs Pro to add anything). See [Cheatsheet's plans](https://cheats.aarontrotter.com/billing) for the details.
 
 A couple of other things worth knowing:
 
