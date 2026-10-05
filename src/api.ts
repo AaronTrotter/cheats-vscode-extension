@@ -117,11 +117,26 @@ export const PROJECT_CARD_STATUS_LABELS: Record<ProjectCardStatus, string> = {
 	"in-review": "In review"
 };
 
+// What kind of work a card is: a closed enum server-side too (PROJECT_TASK_TYPES in the same
+// file), but optional, so a card made before types existed comes back with type null.
+export const PROJECT_CARD_TYPES = ["feature", "bug", "improvement", "chore", "docs", "research"] as const;
+export type ProjectCardType = typeof PROJECT_CARD_TYPES[number];
+
+export const PROJECT_CARD_TYPE_LABELS: Record<ProjectCardType, string> = {
+	feature: "Feature",
+	bug: "Bug",
+	improvement: "Improvement",
+	chore: "Chore",
+	docs: "Docs",
+	research: "Research"
+};
+
 export interface ProjectCardResult {
 	id: string;
 	title: string;
 	projectID: string;
 	status: ProjectCardStatus;
+	type: ProjectCardType | null;
 	text: string;
 	highlights: string[];
 	links: string[];
@@ -137,6 +152,8 @@ export interface NewProjectCard {
 	projectID: string;
 	text: string;
 	status: ProjectCardStatus;
+	/** Omitted leaves the card untyped. */
+	type?: ProjectCardType;
 }
 
 export class ApiError extends Error {

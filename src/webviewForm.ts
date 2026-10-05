@@ -5,7 +5,10 @@ import {
 	MAX_RECORD_SIZE_BYTES,
 	PROJECT_CARD_STATUSES,
 	PROJECT_CARD_STATUS_LABELS,
+	PROJECT_CARD_TYPES,
+	PROJECT_CARD_TYPE_LABELS,
 	ProjectCardStatus,
+	ProjectCardType,
 	SECTION_CATEGORIES,
 	TaskCategory,
 	TaskDuration,
@@ -31,6 +34,8 @@ export interface TaskFormResult {
 export interface ProjectCardFormResult {
 	title: string;
 	status: ProjectCardStatus;
+	/** undefined when the user cycled to "No type". */
+	type: ProjectCardType | undefined;
 	text: string;
 }
 
@@ -400,21 +405,31 @@ export function showCreateTaskForm(initialBody: string, section: TaskSection): P
 }
 
 // The card is added to `projectName`'s board, already picked before the form opens, so the form
-// only asks for what the card itself carries. Status is the board column, cycled as a pill for the
-// same reason a task's category is: the server takes a closed enum and 400s anything else.
+// only asks for what the card itself carries. Status is the board column and type the kind of work,
+// both cycled as pills for the same reason a task's category is: the server takes a closed enum and
+// 400s anything else. Type starts on Feature, like the site's own editor, and its last stop is
+// "No type" (the empty key), since the server treats a card's type as optional.
 export function showCreateProjectCardForm(initialBody: string, projectName: string): Promise<ProjectCardFormResult | undefined> {
 	const fields = `${TITLE_FIELD_HTML}
-<div class="field">
-	<label for="statusToggle">Column</label>
-	<button type="button" id="statusToggle" class="toggle-btn" title="Click to change column"></button>
+<div class="row">
+	<div class="field">
+		<label for="cardTypeToggle">Type</label>
+		<button type="button" id="cardTypeToggle" class="toggle-btn" title="Click to change type"></button>
+	</div>
+	<div class="field">
+		<label for="statusToggle">Column</label>
+		<button type="button" id="statusToggle" class="toggle-btn" title="Click to change column"></button>
+	</div>
 </div>${BODY_FIELD_HTML}`;
 
+	const cardType = cyclingToggleScript("cardType", "cardTypeToggle", [...PROJECT_CARD_TYPES, ""], { ...PROJECT_CARD_TYPE_LABELS, "": "No type" });
 	const status = cyclingToggleScript("status", "statusToggle", PROJECT_CARD_STATUSES, PROJECT_CARD_STATUS_LABELS);
 
 	const script = `
 		${formPrelude(initialBody)}
+		${cardType}
 		${status}
-		${validationScript("{ title, status, text: bodyEl.value }")}
+		${validationScript("{ title, status, cardType, text: bodyEl.value }")}
 		${LINE_NUMBERS_SCRIPT}
 	`;
 
@@ -427,6 +442,7 @@ export function showCreateProjectCardForm(initialBody: string, projectName: stri
 		message => ({
 			title: message.title as string,
 			status: message.status as ProjectCardStatus,
+			type: (message.cardType as ProjectCardType | "") || undefined,
 			text: message.text as string
 		})
 	);

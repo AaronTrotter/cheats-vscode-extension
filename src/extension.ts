@@ -5,6 +5,7 @@ import {
 	NewProjectCard,
 	NewTask,
 	PROJECT_CARD_STATUS_LABELS,
+	PROJECT_CARD_TYPE_LABELS,
 	ProjectResult,
 	TaskSection,
 	addCheat,
@@ -430,7 +431,8 @@ function searchProjectCardsCommand(secrets: vscode.SecretStorage): Promise<void>
 		},
 		toItem: c => ({
 			label: c.title,
-			description: `${c.projectName} · ${PROJECT_CARD_STATUS_LABELS[c.status] ?? c.status}`,
+			description: [c.type ? PROJECT_CARD_TYPE_LABELS[c.type] ?? c.type : null, c.projectName, PROJECT_CARD_STATUS_LABELS[c.status] ?? c.status]
+				.filter(Boolean).join(" · "),
 			detail: c.text.replace(/\s+/g, " ").trim()
 		}),
 		resolveText: async c => c.text
@@ -479,7 +481,8 @@ async function createProjectCardCommand(secrets: vscode.SecretStorage): Promise<
 		title: form.title,
 		projectID: project.id,
 		text: form.text,
-		status: form.status
+		status: form.status,
+		type: form.type
 	};
 
 	await saveEntityCommand(secrets, "project card", card.title, signal => addProjectCard(card, secrets, signal));

@@ -46,8 +46,8 @@ Brain is the AI-facing side of the same section: briefs are context you want an 
 
 Projects is Cheatsheet's Kanban board: each project is a board, and each card sits in one of its columns (Open, In progress, In review). Two Command Palette commands cover it, again with no default keybindings:
 
-- `Cheatsheet Sidekick: Search Project Cards` searches the cards on every board you can see, including boards shared with you. Leave the box blank to list every card. Each result shows which board it's on and which column it's in, and picking one inserts its text.
-- `Cheatsheet Sidekick: Create Project Card` asks which board to add it to (skipped if you only have one), then opens a form with the title, a column pill, and the text, pre-filled from your selection. Boards shared with you as view-only aren't offered. New boards are created on the site itself.
+- `Cheatsheet Sidekick: Search Project Cards` searches the cards on every board you can see, including boards shared with you. Leave the box blank to list every card. Each result shows its type (Bug, Feature and so on), which board it's on and which column it's in, and picking one inserts its text.
+- `Cheatsheet Sidekick: Create Project Card` asks which board to add it to (skipped if you only have one), then opens a form with the title, a type pill, a column pill, and the text, pre-filled from your selection. Boards shared with you as view-only aren't offered. New boards are created on the site itself.
 
 ## Plans and limits
 
