@@ -2,7 +2,7 @@
   "name": "aaronscheatsheet",
   "displayName": "Cheatsheet Sidekick",
   "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheatsheet snippets, Tasks, Brain entries, and Project cards without leaving the editor.",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "publisher": "AaronTrotter",
   "icon": "icon.png",
   "license": "MIT",
@@ -16,8 +16,13 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Snippets", "Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
