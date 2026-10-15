@@ -6,3 +6,6 @@ tsconfig.json
 CLAUDE.md
 **/*.map
 **/.git/**
+*.vsix
+AGENTS.md
+DEPLOY.md
