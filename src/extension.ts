@@ -307,7 +307,7 @@ async function saveEntityCommand(
 function searchCheatsCommand(secrets: vscode.SecretStorage): Promise<void> {
 	return searchAndInsertCommand(secrets, {
 		label: "Cheats",
-		prompt: "Search your cheatsheet site",
+		prompt: "Search your Cheats site",
 		pickTitle: "Cheats Sidekick: Select a result to insert",
 		emptyMessage: "Cheats Sidekick: No results found.",
 		useSelectionDirectly: true,
