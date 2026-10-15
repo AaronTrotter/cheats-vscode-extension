@@ -60,4 +60,4 @@ A couple of other things worth knowing:
 
 ## Contributing
 
-Want to work on the extension itself rather than just use it? Clone [the repo](https://github.com/AaronTrotter/cheatsheet-vscode-extension), run `npm install`, then press F5 in VS Code to launch an Extension Development Host with your changes loaded (it builds automatically first). Use `npm run watch` while actively editing to recompile on save.
+Want to work on the extension itself rather than just use it? Clone [the repo](https://github.com/AaronTrotter/cheats-vscode-extension), run `npm install`, then press F5 in VS Code to launch an Extension Development Host with your changes loaded (it builds automatically first). Use `npm run watch` while actively editing to recompile on save.

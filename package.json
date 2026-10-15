@@ -8,10 +8,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AaronTrotter/cheatsheet-vscode-extension.git"
+    "url": "https://github.com/AaronTrotter/cheats-vscode-extension.git"
   },
   "bugs": {
-    "url": "https://github.com/AaronTrotter/cheatsheet-vscode-extension/issues"
+    "url": "https://github.com/AaronTrotter/cheats-vscode-extension/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
