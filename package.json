@@ -1,7 +1,7 @@
 {
   "name": "aaronscheatsheet",
-  "displayName": "Cheatsheet Sidekick",
-  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheatsheet snippets, Tasks, Brain entries, and Project cards without leaving the editor.",
+  "displayName": "Cheats Sidekick",
+  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheats snippets, Tasks, Brain entries, and Project cards without leaving the editor.",
   "version": "0.0.9",
   "publisher": "AaronTrotter",
   "icon": "icon.png",
@@ -28,43 +28,43 @@
     "commands": [
       {
         "command": "cheats.setApiKey",
-        "title": "Cheatsheet Sidekick: Set API Key"
+        "title": "Cheats Sidekick: Set API Key"
       },
       {
         "command": "cheats.searchCheats",
-        "title": "Cheatsheet Sidekick: Search Cheats"
+        "title": "Cheats Sidekick: Search Cheats"
       },
       {
         "command": "cheats.createCheat",
-        "title": "Cheatsheet Sidekick: Create Cheat"
+        "title": "Cheats Sidekick: Create Cheat"
       },
       {
         "command": "cheats.searchTasks",
-        "title": "Cheatsheet Sidekick: Search Tasks"
+        "title": "Cheats Sidekick: Search Tasks"
       },
       {
         "command": "cheats.createTask",
-        "title": "Cheatsheet Sidekick: Create Task"
+        "title": "Cheats Sidekick: Create Task"
       },
       {
         "command": "cheats.searchBrain",
-        "title": "Cheatsheet Sidekick: Search Brain"
+        "title": "Cheats Sidekick: Search Brain"
       },
       {
         "command": "cheats.createBrain",
-        "title": "Cheatsheet Sidekick: Create Brain Entry"
+        "title": "Cheats Sidekick: Create Brain Entry"
       },
       {
         "command": "cheats.insertGuides",
-        "title": "Cheatsheet Sidekick: Insert Guides (Brief + Rules)"
+        "title": "Cheats Sidekick: Insert Guides (Brief + Rules)"
       },
       {
         "command": "cheats.searchProjectCards",
-        "title": "Cheatsheet Sidekick: Search Project Cards"
+        "title": "Cheats Sidekick: Search Project Cards"
       },
       {
         "command": "cheats.createProjectCard",
-        "title": "Cheatsheet Sidekick: Create Project Card"
+        "title": "Cheats Sidekick: Create Project Card"
       }
     ],
     "keybindings": [
@@ -94,12 +94,12 @@
       }
     ],
     "configuration": {
-      "title": "Cheatsheet Sidekick",
+      "title": "Cheats Sidekick",
       "properties": {
         "cheats.baseUrl": {
           "type": "string",
-          "default": "https://cheats.aarontrotter.com",
-          "description": "Base URL of the Cheatsheet instance to search (no trailing slash). Only change this if you run your own fork of Cheatsheet elsewhere."
+          "default": "https://cheats.cloud",
+          "description": "Base URL of the Cheats instance to search (no trailing slash). Only change this if you run your own fork of Cheats elsewhere."
         },
         "cheats.limit": {
           "type": "number",

@@ -182,15 +182,15 @@ export async function getApiKey(secrets: vscode.SecretStorage): Promise<string |
 
 export async function setApiKey(secrets: vscode.SecretStorage): Promise<void> {
 	const key = await vscode.window.showInputBox({
-		title: "Cheatsheet Sidekick: Set API Key",
-		prompt: "Paste an API key from cheats.aarontrotter.com/user. A free account covers a read-scoped " +
-			"key for search; creating cheats needs a read + write key, which requires Pro (cheats.aarontrotter.com/billing).",
+		title: "Cheats Sidekick: Set API Key",
+		prompt: "Paste an API key from cheats.cloud/user. A free account covers a read-scoped " +
+			"key for search; creating cheats needs a read + write key, which requires Pro (cheats.cloud/billing).",
 		password: true,
 		ignoreFocusOut: true
 	});
 	if (key) {
 		await secrets.store(SECRET_KEY, key.trim());
-		vscode.window.showInformationMessage("Cheatsheet Sidekick: API key saved.");
+		vscode.window.showInformationMessage("Cheats Sidekick: API key saved.");
 	}
 }
 
@@ -198,7 +198,7 @@ function baseUrl(): string {
 	return vscode.workspace.getConfiguration("cheats").get<string>("baseUrl", "").replace(/\/+$/, "");
 }
 
-/** A page on the configured Cheatsheet site, e.g. sitePage("/billing"), for the commands that link out to it. */
+/** A page on the configured Cheats site, e.g. sitePage("/billing"), for the commands that link out to it. */
 export function sitePage(path: string): vscode.Uri {
 	return vscode.Uri.parse(`${baseUrl()}${path}`);
 }
@@ -206,7 +206,7 @@ export function sitePage(path: string): vscode.Uri {
 async function request<T>(path: string, secrets: vscode.SecretStorage, signal: AbortSignal, init?: RequestInit): Promise<T> {
 	const apiKey = await getApiKey(secrets);
 	if (!apiKey) {
-		throw new ApiError(401, "No API key set. Run 'Cheatsheet Sidekick: Set API Key' first.");
+		throw new ApiError(401, "No API key set. Run 'Cheats Sidekick: Set API Key' first.");
 	}
 	const res = await fetch(`${baseUrl()}${path}`, {
 		...init,

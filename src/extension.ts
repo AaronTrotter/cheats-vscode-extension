@@ -144,7 +144,7 @@ async function insertOrReplace(editor: vscode.TextEditor, range: vscode.Range | 
 
 function showApiError(error: unknown): void {
 	const message = error instanceof ApiError ? error.message : String(error);
-	vscode.window.showErrorMessage(`Cheatsheet Sidekick: ${message}`);
+	vscode.window.showErrorMessage(`Cheats Sidekick: ${message}`);
 }
 
 // Shared by every command (the as-you-type completions stay on the rate-limited showApiError).
@@ -160,7 +160,7 @@ async function handleApiError(error: unknown, secrets: vscode.SecretStorage, ent
 	let message: string;
 	let actions: string[];
 	if (error.outsideKeySections) {
-		message = `${error.message} Tick that section for the key on your Cheatsheet User page, or set a key that covers it.`;
+		message = `${error.message} Tick that section for the key on your Cheats User page, or set a key that covers it.`;
 		actions = ["Set API Key", "Open User Page"];
 	} else if (entityName && error.needsPro) {
 		message = `Creating a ${entityName} needs a Pro account, and yours is on Free.`;
@@ -174,7 +174,7 @@ async function handleApiError(error: unknown, secrets: vscode.SecretStorage, ent
 		return;
 	}
 
-	const choice = await vscode.window.showErrorMessage(`Cheatsheet Sidekick: ${message}`, ...actions);
+	const choice = await vscode.window.showErrorMessage(`Cheats Sidekick: ${message}`, ...actions);
 	if (choice === "Set API Key") await setApiKey(secrets);
 	else if (choice === "Open User Page") await vscode.env.openExternal(sitePage("/user"));
 	else if (choice === "Upgrade to Pro") await vscode.env.openExternal(sitePage("/billing"));
@@ -233,7 +233,7 @@ async function searchAndInsertCommand<T>(secrets: vscode.SecretStorage, flow: Se
 	} else {
 		const seed = range ? editor.document.getText(range) : "";
 		const input = await vscode.window.showInputBox({
-			title: `Cheatsheet Sidekick: Search ${flow.label}`,
+			title: `Cheats Sidekick: Search ${flow.label}`,
 			prompt: flow.prompt,
 			value: seed,
 			valueSelection: seed ? [0, seed.length] : undefined,
@@ -253,7 +253,7 @@ async function searchAndInsertCommand<T>(secrets: vscode.SecretStorage, flow: Se
 
 	let results: T[] | undefined;
 	try {
-		results = await withCancellableProgress(`Cheatsheet Sidekick: Searching ${flow.label}…`, signal => flow.search(query, signal));
+		results = await withCancellableProgress(`Cheats Sidekick: Searching ${flow.label}…`, signal => flow.search(query, signal));
 	} catch (error) {
 		await handleApiError(error, secrets);
 		return;
@@ -295,21 +295,21 @@ async function saveEntityCommand(
 ): Promise<void> {
 	let id: string | undefined;
 	try {
-		id = await withCancellableProgress(`Cheatsheet Sidekick: Saving ${entityName}…`, save);
+		id = await withCancellableProgress(`Cheats Sidekick: Saving ${entityName}…`, save);
 	} catch (error) {
 		await handleApiError(error, secrets, entityName);
 		return;
 	}
 	if (id === undefined) return;
-	vscode.window.showInformationMessage(`Cheatsheet Sidekick: Saved ${entityName} "${title}" (${id}).`);
+	vscode.window.showInformationMessage(`Cheats Sidekick: Saved ${entityName} "${title}" (${id}).`);
 }
 
 function searchCheatsCommand(secrets: vscode.SecretStorage): Promise<void> {
 	return searchAndInsertCommand(secrets, {
 		label: "Cheats",
 		prompt: "Search your cheatsheet site",
-		pickTitle: "Cheatsheet Sidekick: Select a result to insert",
-		emptyMessage: "Cheatsheet Sidekick: No results found.",
+		pickTitle: "Cheats Sidekick: Select a result to insert",
+		emptyMessage: "Cheats Sidekick: No results found.",
 		useSelectionDirectly: true,
 		allowBlankQuery: false,
 		search: (query, signal) => searchCheats(query, secrets, signal),
@@ -351,8 +351,8 @@ function searchSectionCommand(secrets: vscode.SecretStorage, section: TaskSectio
 	return searchAndInsertCommand(secrets, {
 		label,
 		prompt: `Search your ${label} (leave blank to browse your most recent)`,
-		pickTitle: `Cheatsheet Sidekick: Select ${SECTION_PICK_NOUNS[section]} to insert`,
-		emptyMessage: `Cheatsheet Sidekick: No ${label} entries found.`,
+		pickTitle: `Cheats Sidekick: Select ${SECTION_PICK_NOUNS[section]} to insert`,
+		emptyMessage: `Cheats Sidekick: No ${label} entries found.`,
 		useSelectionDirectly: false,
 		allowBlankQuery: true,
 		search: (query, signal) => searchTasks(query, section, secrets, signal),
@@ -390,7 +390,7 @@ async function insertGuidesCommand(secrets: vscode.SecretStorage): Promise<void>
 
 	let guides: string | undefined;
 	try {
-		guides = await withCancellableProgress("Cheatsheet Sidekick: Fetching Guides…", signal => getGuides(secrets, signal));
+		guides = await withCancellableProgress("Cheats Sidekick: Fetching Guides…", signal => getGuides(secrets, signal));
 	} catch (error) {
 		await handleApiError(error, secrets);
 		return;
@@ -401,7 +401,7 @@ async function insertGuidesCommand(secrets: vscode.SecretStorage): Promise<void>
 	// which would otherwise look like the command silently doing nothing.
 	if (!guides.trim()) {
 		vscode.window.showInformationMessage(
-			"Cheatsheet Sidekick: No guides yet. Add a Brief or Rules entry to your Brain first."
+			"Cheats Sidekick: No guides yet. Add a Brief or Rules entry to your Brain first."
 		);
 		return;
 	}
@@ -415,8 +415,8 @@ function searchProjectCardsCommand(secrets: vscode.SecretStorage): Promise<void>
 	return searchAndInsertCommand(secrets, {
 		label: "Project Cards",
 		prompt: "Search your project cards (leave blank to list every card)",
-		pickTitle: "Cheatsheet Sidekick: Select a card to insert",
-		emptyMessage: "Cheatsheet Sidekick: No project cards found.",
+		pickTitle: "Cheats Sidekick: Select a card to insert",
+		emptyMessage: "Cheats Sidekick: No project cards found.",
 		useSelectionDirectly: false,
 		allowBlankQuery: true,
 		search: async (query, signal) => {
@@ -447,7 +447,7 @@ async function createProjectCardCommand(secrets: vscode.SecretStorage): Promise<
 
 	let projects: ProjectResult[] | undefined;
 	try {
-		projects = await withCancellableProgress("Cheatsheet Sidekick: Fetching projects…", signal => searchProjects(secrets, signal));
+		projects = await withCancellableProgress("Cheats Sidekick: Fetching projects…", signal => searchProjects(secrets, signal));
 	} catch (error) {
 		await handleApiError(error, secrets);
 		return;
@@ -457,8 +457,8 @@ async function createProjectCardCommand(secrets: vscode.SecretStorage): Promise<
 	const writable = projects.filter(project => project.role !== "viewer");
 	if (writable.length === 0) {
 		vscode.window.showInformationMessage(projects.length > 0
-			? "Cheatsheet Sidekick: You only have view access to the projects you can see, so there's nowhere to add a card."
-			: "Cheatsheet Sidekick: No projects yet. Create one on Cheatsheet's Projects page first.");
+			? "Cheats Sidekick: You only have view access to the projects you can see, so there's nowhere to add a card."
+			: "Cheats Sidekick: No projects yet. Create one on Cheats' Projects page first.");
 		return;
 	}
 
@@ -470,7 +470,7 @@ async function createProjectCardCommand(secrets: vscode.SecretStorage): Promise<
 				description: p.role === "owner" ? undefined : `shared by ${p.ownerEmail}`,
 				project: p
 			})),
-			{ title: "Cheatsheet Sidekick: Add the card to which project?", matchOnDescription: true }
+			{ title: "Cheats Sidekick: Add the card to which project?", matchOnDescription: true }
 		))?.project;
 	if (!project) return;
 
