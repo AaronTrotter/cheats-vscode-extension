@@ -3,24 +3,24 @@ import {
 	ApiError,
 	NewCheat,
 	NewProjectCard,
-	NewTask,
+	NewNote,
 	PROJECT_CARD_STATUS_LABELS,
 	PROJECT_CARD_TYPE_LABELS,
 	ProjectResult,
-	TaskSection,
+	NoteSection,
 	addCheat,
 	addProjectCard,
-	addTask,
+	addNote,
 	getCheatBody,
 	getGuides,
 	searchCheats,
 	searchProjectCards,
 	searchProjects,
-	searchTasks,
+	searchNotes,
 	setApiKey,
 	sitePage
 } from "./api";
-import { showCreateCheatForm, showCreateProjectCardForm, showCreateTaskForm } from "./webviewForm";
+import { showCreateCheatForm, showCreateProjectCardForm, showCreateNoteForm } from "./webviewForm";
 
 const TRIGGER = /\/cheats\s+(\S.*)$/;
 const DEBOUNCE_MS = 250;
@@ -201,18 +201,18 @@ async function withCancellableProgress<T>(title: string, action: (signal: AbortS
 }
 
 interface SearchFlow<T> {
-	/** Names the section in the input box, progress and messages, e.g. "Cheats", "Tasks", "Brain". */
+	/** Names the section in the input box, progress and messages, e.g. "Cheats", "Notes", "Brain". */
 	label: string;
 	prompt: string;
 	pickTitle: string;
 	emptyMessage: string;
-	/** Cheats search a non-empty selection straight off; Tasks and Brain always confirm the query. */
+	/** Cheats search a non-empty selection straight off; Notes and Brain always confirm the query. */
 	useSelectionDirectly: boolean;
-	/** Tasks and Brain accept a blank query to browse the most recent; cheat search needs one. */
+	/** Notes and Brain accept a blank query to browse the most recent; cheat search needs one. */
 	allowBlankQuery: boolean;
 	search: (query: string, signal: AbortSignal) => Promise<T[]>;
 	toItem: (result: T) => { label: string; description?: string; detail: string };
-	/** Cheats fetch the full body lazily on pick; tasks and Brain entries already carry their text. */
+	/** Cheats fetch the full body lazily on pick; notes and Brain entries already carry their text. */
 	resolveText: (result: T, signal: AbortSignal) => Promise<string>;
 }
 
@@ -282,7 +282,7 @@ async function searchAndInsertCommand<T>(secrets: vscode.SecretStorage, flow: Se
 	await insertOrReplace(editor, range, text);
 }
 
-type EntityName = "cheat" | "task" | "brain entry" | "project card";
+type EntityName = "cheat" | "note" | "brain entry" | "project card";
 
 // Shared by every create command: runs the save under progress, then handles the outcomes they
 // have in common (cancelled, or any ApiError via handleApiError) the same way, leaving only the
@@ -338,15 +338,15 @@ async function createCheatCommand(secrets: vscode.SecretStorage): Promise<void> 
 	await saveEntityCommand(secrets, "cheat", cheat.title, signal => addCheat(cheat, secrets, signal));
 }
 
-// Tasks and Brain are separate sections of the site, backed by a collection each and split by
+// Notes and Brain are separate sections of the site, backed by a collection each and split by
 // category (SECTION_CATEGORIES in ./api). The extension keeps them separate too: each gets its own
-// pair of commands, and each section has its own endpoints server-side, so a Tasks search never
+// pair of commands, and each section has its own endpoints server-side, so a Notes search never
 // turns up the user's brief/rules/memory entries, or the reverse.
-const SECTION_LABELS: Record<TaskSection, string> = { tasks: "Tasks", brain: "Brain" };
-const SECTION_ENTITY_NAMES: Record<TaskSection, EntityName> = { tasks: "task", brain: "brain entry" };
-const SECTION_PICK_NOUNS: Record<TaskSection, string> = { tasks: "a task", brain: "an entry" };
+const SECTION_LABELS: Record<NoteSection, string> = { notes: "Notes", brain: "Brain" };
+const SECTION_ENTITY_NAMES: Record<NoteSection, EntityName> = { notes: "note", brain: "brain entry" };
+const SECTION_PICK_NOUNS: Record<NoteSection, string> = { notes: "a note", brain: "an entry" };
 
-function searchSectionCommand(secrets: vscode.SecretStorage, section: TaskSection): Promise<void> {
+function searchSectionCommand(secrets: vscode.SecretStorage, section: NoteSection): Promise<void> {
 	const label = SECTION_LABELS[section];
 	return searchAndInsertCommand(secrets, {
 		label,
@@ -355,7 +355,7 @@ function searchSectionCommand(secrets: vscode.SecretStorage, section: TaskSectio
 		emptyMessage: `Cheats Sidekick: No ${label} entries found.`,
 		useSelectionDirectly: false,
 		allowBlankQuery: true,
-		search: (query, signal) => searchTasks(query, section, secrets, signal),
+		search: (query, signal) => searchNotes(query, section, secrets, signal),
 		toItem: t => ({
 			label: t.title,
 			description: t.category || undefined,
@@ -365,20 +365,20 @@ function searchSectionCommand(secrets: vscode.SecretStorage, section: TaskSectio
 	});
 }
 
-async function createSectionCommand(secrets: vscode.SecretStorage, section: TaskSection): Promise<void> {
+async function createSectionCommand(secrets: vscode.SecretStorage, section: NoteSection): Promise<void> {
 	const initialBody = getSelectedText(vscode.window.activeTextEditor);
 
-	const form = await showCreateTaskForm(initialBody, section);
+	const form = await showCreateNoteForm(initialBody, section);
 	if (!form) return;
 
-	const task: NewTask = {
+	const note: NewNote = {
 		title: form.title,
 		category: form.category,
 		text: form.text,
 		duration: form.duration
 	};
 
-	await saveEntityCommand(secrets, SECTION_ENTITY_NAMES[section], task.title, signal => addTask(task, section, secrets, signal));
+	await saveEntityCommand(secrets, SECTION_ENTITY_NAMES[section], note.title, signal => addNote(note, section, secrets, signal));
 }
 
 // The user's own brief and rules, pre-formatted as markdown by the server (buildGuidesText in the
@@ -496,8 +496,13 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand("cheats.setApiKey", () => setApiKey(context.secrets)),
 		vscode.commands.registerCommand("cheats.searchCheats", () => searchCheatsCommand(context.secrets)),
 		vscode.commands.registerCommand("cheats.createCheat", () => createCheatCommand(context.secrets)),
-		vscode.commands.registerCommand("cheats.searchTasks", () => searchSectionCommand(context.secrets, "tasks")),
-		vscode.commands.registerCommand("cheats.createTask", () => createSectionCommand(context.secrets, "tasks")),
+		vscode.commands.registerCommand("cheats.searchNotes", () => searchSectionCommand(context.secrets, "notes")),
+		vscode.commands.registerCommand("cheats.createNote", () => createSectionCommand(context.secrets, "notes")),
+		// The pre-0.2.0 ids from when the site called this section Tasks. Not contributed in
+		// package.json, so they stay out of the command palette, but a user's own keybindings.json
+		// entry or task that still names them keeps working.
+		vscode.commands.registerCommand("cheats.searchTasks", () => searchSectionCommand(context.secrets, "notes")),
+		vscode.commands.registerCommand("cheats.createTask", () => createSectionCommand(context.secrets, "notes")),
 		vscode.commands.registerCommand("cheats.searchBrain", () => searchSectionCommand(context.secrets, "brain")),
 		vscode.commands.registerCommand("cheats.createBrain", () => createSectionCommand(context.secrets, "brain")),
 		vscode.commands.registerCommand("cheats.insertGuides", () => insertGuidesCommand(context.secrets)),

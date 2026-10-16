@@ -10,9 +10,9 @@ import {
 	ProjectCardStatus,
 	ProjectCardType,
 	SECTION_CATEGORIES,
-	TaskCategory,
-	TaskDuration,
-	TaskSection,
+	NoteCategory,
+	NoteDuration,
+	NoteSection,
 	TITLE_MAX_LENGTH,
 	TYPE_MAX_LENGTH
 } from "./api";
@@ -24,10 +24,10 @@ export interface CheatFormResult {
 	body: string;
 }
 
-export interface TaskFormResult {
+export interface NoteFormResult {
 	title: string;
-	category: TaskCategory;
-	duration: TaskDuration;
+	category: NoteCategory;
+	duration: NoteDuration;
 	text: string;
 }
 
@@ -154,8 +154,8 @@ function formPrelude(initialBody: string): string {
 }
 
 // A .toggle-btn whose click cycles through a fixed set of values, the interaction the site's own
-// editors use for these fields (renderTaskEditor in public/js/tasks.js) rather than a dropdown or
-// a text input. Shared by every one of them: a cheat's visibility (a two-value case), a task's
+// editors use for these fields (renderNoteEditor in public/js/notes.js) rather than a dropdown or
+// a text input. Shared by every one of them: a cheat's visibility (a two-value case), a note's
 // category and expiry, and a project card's column. `titles` is optional, pass it only when the tooltip should change with the
 // value, otherwise the button keeps whatever static title its markup declares.
 function cyclingToggleScript(
@@ -185,7 +185,7 @@ function cyclingToggleScript(
 }
 
 // The one free-text field a form has besides its title. Cheats have one (typeName, a freeform
-// taxonomy lookup); the task and Brain forms don't, since their category is a closed enum served
+// taxonomy lookup); the note and Brain forms don't, since their category is a closed enum served
 // by a pill and so can never be invalid.
 interface TextField {
 	/** Element variable, declared in the caller's prelude. */
@@ -343,7 +343,7 @@ export function showCreateCheatForm(initialBody: string): Promise<CheatFormResul
 	}));
 }
 
-const CATEGORY_LABELS: Record<TaskCategory, string> = {
+const CATEGORY_LABELS: Record<NoteCategory, string> = {
 	note: "Note",
 	list: "List",
 	brief: "Brief",
@@ -351,16 +351,16 @@ const CATEGORY_LABELS: Record<TaskCategory, string> = {
 	memory: "Memory"
 };
 
-const SECTION_TITLES: Record<TaskSection, string> = { tasks: "New Task", brain: "New Brain Entry" };
-const SECTION_VIEW_TYPES: Record<TaskSection, string> = { tasks: "cheatsCreateTask", brain: "cheatsCreateBrain" };
-const SECTION_SAVE_LABELS: Record<TaskSection, string> = { tasks: "Save task", brain: "Save entry" };
+const SECTION_TITLES: Record<NoteSection, string> = { notes: "New Note", brain: "New Brain Entry" };
+const SECTION_VIEW_TYPES: Record<NoteSection, string> = { notes: "cheatsCreateNote", brain: "cheatsCreateBrain" };
+const SECTION_SAVE_LABELS: Record<NoteSection, string> = { notes: "Save note", brain: "Save entry" };
 
-// Serves both the Tasks and the Brain form. The two sections differ only in which categories they
+// Serves both the Notes and the Brain form. The two sections differ only in which categories they
 // accept (SECTION_CATEGORIES) and what the panel calls itself, so one form covers both rather than
 // a near-identical copy each. Category is a pill, not a text field: the server takes a closed enum
-// (resolveCategory in the site's functions/routes/db/tasks.js) and 400s anything else, so cycling
+// (resolveCategory in the site's functions/routes/db/notes.js) and 400s anything else, so cycling
 // it makes an invalid value unreachable instead of merely rejected after a round trip.
-export function showCreateTaskForm(initialBody: string, section: TaskSection): Promise<TaskFormResult | undefined> {
+export function showCreateNoteForm(initialBody: string, section: NoteSection): Promise<NoteFormResult | undefined> {
 	const fields = `${TITLE_FIELD_HTML}
 <div class="row">
 	<div class="field">
@@ -397,16 +397,16 @@ export function showCreateTaskForm(initialBody: string, section: TaskSection): P
 		script,
 		message => ({
 			title: message.title as string,
-			category: message.category as TaskCategory,
+			category: message.category as NoteCategory,
 			text: message.text as string,
-			duration: message.duration as TaskDuration
+			duration: message.duration as NoteDuration
 		})
 	);
 }
 
 // The card is added to `projectName`'s board, already picked before the form opens, so the form
 // only asks for what the card itself carries. Status is the board column and type the kind of work,
-// both cycled as pills for the same reason a task's category is: the server takes a closed enum and
+// both cycled as pills for the same reason a note's category is: the server takes a closed enum and
 // 400s anything else. Type starts on Feature, like the site's own editor, and its last stop is
 // "No type" (the empty key), since the server treats a card's type as optional.
 export function showCreateProjectCardForm(initialBody: string, projectName: string): Promise<ProjectCardFormResult | undefined> {

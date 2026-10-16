@@ -1,8 +1,8 @@
 {
   "name": "aaronscheatsheet",
   "displayName": "Cheats Sidekick",
-  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheats snippets, Tasks, Brain entries, and Project cards without leaving the editor.",
-  "version": "0.1.0",
+  "description": "\"Built for Me, Too Good to Keep to Myself.\" Search, insert, and save Cheats snippets, Notes, Brain entries, and Project cards without leaving the editor.",
+  "version": "0.2.0",
   "publisher": "AaronTrotter",
   "icon": "icon.png",
   "license": "MIT",
@@ -39,12 +39,12 @@
         "title": "Cheats Sidekick: Create Cheat"
       },
       {
-        "command": "cheats.searchTasks",
-        "title": "Cheats Sidekick: Search Tasks"
+        "command": "cheats.searchNotes",
+        "title": "Cheats Sidekick: Search Notes"
       },
       {
-        "command": "cheats.createTask",
-        "title": "Cheats Sidekick: Create Task"
+        "command": "cheats.createNote",
+        "title": "Cheats Sidekick: Create Note"
       },
       {
         "command": "cheats.searchBrain",
@@ -81,13 +81,13 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "cheats.searchTasks",
+        "command": "cheats.searchNotes",
         "key": "ctrl+alt+shift+/",
         "mac": "cmd+alt+shift+/",
         "when": "editorTextFocus"
       },
       {
-        "command": "cheats.createTask",
+        "command": "cheats.createNote",
         "key": "ctrl+alt+shift+.",
         "mac": "cmd+alt+shift+.",
         "when": "editorTextFocus"

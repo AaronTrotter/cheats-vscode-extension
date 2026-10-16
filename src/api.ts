@@ -38,12 +38,12 @@ export interface NewCheat {
 	private: boolean;
 }
 
-// POST /mcp/addCheat, /mcp/addTask, /mcp/addBrain and /mcp/addProjectTask all answer with just the new record's id.
+// POST /mcp/addCheat, /mcp/addNote, /mcp/addBrain and /mcp/addProjectTask all answer with just the new record's id.
 interface AddResponse {
 	id: string;
 }
 
-export interface TaskResult {
+export interface NoteResult {
 	id: string;
 	title: string;
 	category: string;
@@ -54,8 +54,8 @@ export interface TaskResult {
 	expiresAtMs: number | null;
 }
 
-interface SearchTasksResponse {
-	tasks: TaskResult[];
+interface SearchNotesResponse {
+	notes: NoteResult[];
 	totalPages: number;
 }
 
@@ -63,28 +63,28 @@ interface GuidesResponse {
 	guides: string;
 }
 
-// Tasks and Brain are two separate sections of the site, each with its own Firestore collection
-// (`tasks` and `brain`) and its own REST endpoints (SECTION_ENDPOINTS below): /tasks holds the
+// Notes and Brain are two separate sections of the site, each with its own Firestore collection
+// (`notes` and `brain`) and its own REST endpoints (SECTION_ENDPOINTS below): /notes holds the
 // user's own notes and checklists, /brain holds the AI-facing entries
 // (`brief` and `rules` are the user's standing guidance, `memory` is what an assistant records for
-// itself). Mirrors TASK_SECTIONS in the site's functions/routes/db/tasks.js. Category is a closed
+// itself). Mirrors NOTE_SECTIONS in the site's functions/routes/db/notes.js. Category is a closed
 // enum server-side, so it's a cycling pill in the create forms rather than a text field, an
 // unrecognised value is a 400, not a new freeform label the way a cheat's typeName is.
-export type TaskSection = "tasks" | "brain";
-export type TaskCategory = "note" | "list" | "brief" | "rules" | "memory";
+export type NoteSection = "notes" | "brain";
+export type NoteCategory = "note" | "list" | "brief" | "rules" | "memory";
 
-export const SECTION_CATEGORIES: Record<TaskSection, readonly TaskCategory[]> = {
-	tasks: ["note", "list"],
+export const SECTION_CATEGORIES: Record<NoteSection, readonly NoteCategory[]> = {
+	notes: ["note", "list"],
 	brain: ["brief", "rules", "memory"]
 };
 
-export type TaskDuration = "permanent" | "1h" | "1d" | "1w";
+export type NoteDuration = "permanent" | "1h" | "1d" | "1w";
 
-export interface NewTask {
+export interface NewNote {
 	title: string;
-	category: TaskCategory;
+	category: NoteCategory;
 	text: string;
-	duration: TaskDuration;
+	duration: NoteDuration;
 }
 
 // Projects are the boards, cards are what sit on them. Unlike every other section a board can be
@@ -268,32 +268,32 @@ export async function addCheat(
 	return post("/mcp/addCheat", cheat, secrets, signal);
 }
 
-// Tasks and Brain each have their own pair of endpoints server-side, and neither can reach the
-// other's entries: /mcp/searchTasks and /mcp/addTask only accept `note`/`list` (a Brain category is
+// Notes and Brain each have their own pair of endpoints server-side, and neither can reach the
+// other's entries: /mcp/searchNotes and /mcp/addNote only accept `note`/`list` (a Brain category is
 // a 400), while /mcp/searchBrain and /mcp/addBrain only accept `brief`/`rules`/`memory`. So the
 // section picks the path, not a query parameter.
-const SECTION_ENDPOINTS: Record<TaskSection, { search: string; add: string }> = {
-	tasks: { search: "/mcp/searchTasks", add: "/mcp/addTask" },
+const SECTION_ENDPOINTS: Record<NoteSection, { search: string; add: string }> = {
+	notes: { search: "/mcp/searchNotes", add: "/mcp/addNote" },
 	brain: { search: "/mcp/searchBrain", add: "/mcp/addBrain" }
 };
 
-export async function searchTasks(
+export async function searchNotes(
 	query: string,
-	section: TaskSection,
+	section: NoteSection,
 	secrets: vscode.SecretStorage,
 	signal: AbortSignal
-): Promise<TaskResult[]> {
-	const data = await request<SearchTasksResponse>(withOptionalQuery(SECTION_ENDPOINTS[section].search, query), secrets, signal);
-	return data.tasks;
+): Promise<NoteResult[]> {
+	const data = await request<SearchNotesResponse>(withOptionalQuery(SECTION_ENDPOINTS[section].search, query), secrets, signal);
+	return data.notes;
 }
 
-export async function addTask(
-	task: NewTask,
-	section: TaskSection,
+export async function addNote(
+	note: NewNote,
+	section: NoteSection,
 	secrets: vscode.SecretStorage,
 	signal: AbortSignal
 ): Promise<string> {
-	return post(SECTION_ENDPOINTS[section].add, task, secrets, signal);
+	return post(SECTION_ENDPOINTS[section].add, note, secrets, signal);
 }
 
 // The user's own standing guidance (their Brain's `brief` and `rules` entries, `memory` excluded)
