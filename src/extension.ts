@@ -7,6 +7,7 @@ import {
 	PROJECT_CARD_STATUS_LABELS,
 	PROJECT_CARD_TYPE_LABELS,
 	ProjectResult,
+	SearchResult,
 	NoteSection,
 	addCheat,
 	addProjectCard,
@@ -23,12 +24,21 @@ import {
 import { showCreateCheatForm, showCreateProjectCardForm, showCreateNoteForm } from "./webviewForm";
 
 const TRIGGER = /\/cheats\s+(\S.*)$/;
-const DEBOUNCE_MS = 250;
 const MIN_QUERY_LENGTH = 2;
+
+// The as-you-type completions are the one place this extension spends API requests without the
+// user pressing Enter, and a Free account gets 20 a day. So they wait for a real pause, need one
+// more character than the search commands, and remember recent answers: VS Code asks again on
+// every keystroke (the list is marked incomplete), including backspacing to a query already run.
+const COMPLETION_DEBOUNCE_MS = 600;
+const COMPLETION_MIN_QUERY_LENGTH = 3;
+const COMPLETION_CACHE_MS = 2 * 60 * 1000;
+const COMPLETION_CACHE_MAX = 50;
 
 class CheatsCompletionProvider implements vscode.CompletionItemProvider {
 	private requestSeq = 0;
 	private lastErrorShownAt = 0;
+	private readonly cache = new Map<string, { at: number; results: SearchResult[] }>();
 
 	constructor(private readonly secrets: vscode.SecretStorage) {}
 
@@ -42,19 +52,26 @@ class CheatsCompletionProvider implements vscode.CompletionItemProvider {
 		if (!match) return undefined;
 
 		const query = match[1].trim();
-		if (query.length < MIN_QUERY_LENGTH) return new vscode.CompletionList([], true);
-
-		const seq = ++this.requestSeq;
-		await new Promise(resolve => setTimeout(resolve, DEBOUNCE_MS));
-		if (token.isCancellationRequested || seq !== this.requestSeq) return undefined;
-
-		const controller = abortControllerFor(token);
+		if (query.length < COMPLETION_MIN_QUERY_LENGTH) return new vscode.CompletionList([], true);
 
 		const triggerStart = prefix.length - match[0].length;
 		const range = new vscode.Range(position.line, triggerStart, position.line, position.character);
 
+		const seq = ++this.requestSeq;
+		const cacheKey = query.toLowerCase();
+		const cached = this.cache.get(cacheKey);
+		const fresh = cached && Date.now() - cached.at < COMPLETION_CACHE_MS ? cached.results : undefined;
+
 		try {
-			const results = await searchCheats(query, this.secrets, controller.signal);
+			let results = fresh;
+			if (!results) {
+				await new Promise(resolve => setTimeout(resolve, COMPLETION_DEBOUNCE_MS));
+				if (token.isCancellationRequested || seq !== this.requestSeq) return undefined;
+
+				const controller = abortControllerFor(token);
+				results = await searchCheats(query, this.secrets, controller.signal);
+				this.remember(cacheKey, results);
+			}
 			if (token.isCancellationRequested || seq !== this.requestSeq) return undefined;
 
 			const items = results.map((r, index) => {
@@ -74,6 +91,16 @@ class CheatsCompletionProvider implements vscode.CompletionItemProvider {
 		} catch (error) {
 			this.showErrorOnce(error);
 			return new vscode.CompletionList([], true);
+		}
+	}
+
+	// Oldest entry out first once the cache is full; a Map iterates in insertion order.
+	private remember(key: string, results: SearchResult[]): void {
+		this.cache.delete(key);
+		this.cache.set(key, { at: Date.now(), results });
+		if (this.cache.size > COMPLETION_CACHE_MAX) {
+			const oldest = this.cache.keys().next().value;
+			if (oldest !== undefined) this.cache.delete(oldest);
 		}
 	}
 

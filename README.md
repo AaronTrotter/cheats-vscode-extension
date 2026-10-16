@@ -16,7 +16,7 @@ Search, insert, and save snippets, Notes, Brain entries, and Project cards from 
 
 ### Search while you type
 
-Type `/cheats` followed by your search terms anywhere in an editor, for example `/cheats react hook`. After a couple of characters, IntelliSense lists matching cheats, ranked by relevance. Accept a suggestion and it replaces what you typed with the full snippet.
+Type `/cheats` followed by your search terms anywhere in an editor, for example `/cheats react hook`. Once you've typed three characters and paused, IntelliSense lists matching cheats, ranked by relevance. Recent searches are remembered for a couple of minutes, so backspacing and retyping doesn't use up your daily API requests. Accept a suggestion and it replaces what you typed with the full snippet.
 
 ### Search Cheats
 
